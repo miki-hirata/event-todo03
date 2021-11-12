@@ -3,9 +3,9 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var helmet = require('helmet');
-var session = require('express-session');
-var passport = require('passport');
+var helmet = require('helmet');//17章 helmetモジュールでセキュリティ対策
+var session = require('express-session');//17章 GitHub 認証の実装
+var passport = require('passport');//17章 GitHub 認証の実装
 // モデルの読み込み
 var User = require('./models/user');
 var Schedule = require('./models/schedule');
@@ -24,7 +24,7 @@ User.sync().then(() => {
   });
 });
 
-
+//17章 GitHub 認証の実装 ここから
 var GitHubStrategy = require('passport-github2').Strategy;
 var GITHUB_CLIENT_ID = '2f831cb3d4aac02393aa';
 var GITHUB_CLIENT_SECRET = '9fbc340ac0175123695d2dedfbdf5a78df3b8067';
@@ -54,6 +54,7 @@ passport.use(new GitHubStrategy({
     });
   }
 ));
+//17章 GitHub 認証の実装 ここまで
 
 var indexRouter = require('./routes/index');
 var loginRouter = require('./routes/login');
