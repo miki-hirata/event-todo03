@@ -1,4 +1,5 @@
 extends layout
+//- 19章 予定と出欠表の表示画面を作成で実装
 
 block content
   div.card.my-3
@@ -8,6 +9,7 @@ block content
       p(style="white-space:pre;") #{schedule.memo}
     div.card-footer
       p 作成者: #{schedule.user.username}
+      //-予定の作成者のユーザー
   - var isMine = parseInt(user.id) === schedule.user.userId
   if isMine
     div
@@ -22,6 +24,7 @@ block content
       tr
         th #{candidate.candidateName}
         each user in users
+          //- 20 章 出欠情報を対応させる ここから
           - var availability = availabilityMapMap.get(user.userId).get(candidate.candidateId)
           - var availabilityLabels = ['欠', '？', '出'];
           - var buttonStyles = ['btn-danger', 'btn-secondary', 'btn-success'];
@@ -34,6 +37,7 @@ block content
                 data-availability=availability) #{availabilityLabels[availability]}
             else
               h3 #{availabilityLabels[availability]}
+              //- 20 章 出欠情報を対応させるここまで
     tr
       th コメント
       each user in users

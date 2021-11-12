@@ -76,8 +76,8 @@ passport.use(new GitHubStrategy({
 var indexRouter = require('./routes/index');
 var loginRouter = require('./routes/login');
 var logoutRouter = require('./routes/logout');
-var schedulesRouter = require('./routes/schedules');
-var availabilitiesRouter = require('./routes/availabilities');
+var schedulesRouter = require('./routes/schedules');//19章 routes/schedules.jsを読み込み
+var availabilitiesRouter = require('./routes/availabilities');//20章 routes/availabilities.jsを読み込み
 var commentsRouter = require('./routes/comments');
 
 var app = express();
@@ -100,8 +100,8 @@ app.use(passport.session());
 app.use('/', indexRouter);
 app.use('/login', loginRouter);
 app.use('/logout', logoutRouter);
-app.use('/schedules', schedulesRouter);
-app.use('/schedules', availabilitiesRouter);
+app.use('/schedules', schedulesRouter);//19章 routes/schedules.jsをルーターとして/schedulesのパスに登録
+app.use('/schedules', availabilitiesRouter);//20章 routes/availabilities.jsををルーターとして/schedulesのパスに登録
 app.use('/schedules', commentsRouter);
 
 app.get('/auth/github',

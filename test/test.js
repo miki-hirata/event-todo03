@@ -1,12 +1,12 @@
 'use strict';
-const request = require('supertest');
-const assert = require('assert');//17章 supertest の読み込み
+const request = require('supertest');//17章 supertest の読み込み
+const assert = require('assert');// 20章Node.js の assert モジュール を読み込み
 const app = require('../app');//17章 テストの対象となる app.js の読み込み
 const passportStub = require('passport-stub');//17章 passport-stub モジュールの読み込み
 const User = require('../models/user');
 const Schedule = require('../models/schedule');
 const Candidate = require('../models/candidate');
-const Availability = require('../models/availability');
+const Availability = require('../models/availability');//20章 出欠のモデルの読み込み
 const Comment = require('../models/comment');
 const deleteScheduleAggregate = require('../routes/schedules').deleteScheduleAggregate;
 
@@ -47,6 +47,7 @@ describe('/logout', () => {//logout にアクセスした際
   });
 });
 
+//19章「予定が作成でき、表示される」ことをテスト ここから
 describe('/schedules', () => {
   beforeAll(() => {
     passportStub.install(app);
@@ -60,11 +61,12 @@ describe('/schedules', () => {
 
   test('予定が作成でき、表示される', (done) => {
     User.upsert({ userId: 0, username: 'testuser' }).then(() => {
+      // userId が 0 で username がtestuserの ユーザーをデータベース上に作成
       request(app)
-        .post('/schedules')
+        .post('/schedules')//POST メソッドを使い予定と候補を作成
         .send({ scheduleName: 'テスト予定1', memo: 'テストメモ1\r\nテストメモ2', candidates: 'テスト候補1\r\nテスト候補2\r\nテスト候補3' })
-        .expect('Location', /schedules/)
-        .expect(302)
+        .expect('Location', /schedules/)//リダイレクト
+        .expect(302)//リダイレクト
         .end((err, res) => {
           const createdSchedulePath = res.headers.location;
           request(app)
@@ -77,11 +79,14 @@ describe('/schedules', () => {
             .expect(/テスト候補3/)
             .expect(200)
             .end((err, res) => { deleteScheduleAggregate(createdSchedulePath.split('/schedules/')[1], done, err); });
+            //20章 deleteScheduleAggregate という関数に 予定、そこに紐づく出欠・候補を削除するためのメソッドを切り出し
         });
     });
   });
 });
+//19章「予定が作成でき、表示される」ことをテスト ここまで
 
+//20章 出欠更新のテストの実装　ここから
 describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
   beforeAll(() => {
     passportStub.install(app);
@@ -96,7 +101,7 @@ describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
   test('出欠が更新できる', (done) => {
     User.upsert({ userId: 0, username: 'testuser' }).then(() => {
       request(app)
-        .post('/schedules')
+        .post('/schedules')///schedules に POST を行い「予定」と「候補」を作成
         .send({ scheduleName: 'テスト出欠更新予定1', memo: 'テスト出欠更新メモ1', candidates: 'テスト出欠更新候補1' })
         .end((err, res) => {
           const createdSchedulePath = res.headers.location;
@@ -104,18 +109,23 @@ describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
           Candidate.findOne({
             where: { scheduleId: scheduleId }
           }).then((candidate) => {
+            //予定」に関連する候補を取得し、 その「候補」に対して、 POST で Web API に対して欠席を出席に更新
             // 更新がされることをテスト
             const userId = 0;
             request(app)
               .post(`/schedules/${scheduleId}/users/${userId}/candidates/${candidate.candidateId}`)
               .send({ availability: 2 }) // 出席に更新
-              .expect('{"status":"OK","availability":2}')
+              .expect('{"status":"OK","availability":2}')//リクエストのレスポンスに '{"status":"OK","availability":2}' が 含まれるかどうかをテスト
               .end((err, res) => {
                 Availability.findAll({
+                  //Availability.findAll 関数
+                  //データベースから where で条件を指定した全ての出欠を取得
                   where: { scheduleId: scheduleId }
                 }).then((availabilities) => {
-                  assert.strictEqual(availabilities.length, 1);
-                  assert.strictEqual(availabilities[0].availability, 2);
+                  //then 関数を呼び出すことで、引数 availabilities 
+                  //出欠モデル models/availability.js で定義したモデルの配列が渡され
+                  assert.strictEqual(availabilities.length, 1);//availabilities の配列の長さは1
+                  assert.strictEqual(availabilities[0].availability, 2);//availabilities の1番目の配列の値は2
                   deleteScheduleAggregate(scheduleId, done, err);
                 });
               });
@@ -124,6 +134,7 @@ describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
     });
   });
 });
+//20章 出欠更新のテストの実装　ここまで
 
 describe('/schedules/:scheduleId/users/:userId/comments', () => {
   beforeAll(() => {

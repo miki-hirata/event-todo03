@@ -2,8 +2,10 @@ extends layout
 
 block content
   form(method="post", action="/schedules").my-3
-    //- 24章 CSRF 脆弱性対策
+    //- 19章 ログイン時にしか表示されない予定作成フォームを作成
+    //- schedules というパスに POST メソッドを 送信
     input(type="hidden" name="_csrf" value!=csrfToken)
+    //- 24章 CSRF 脆弱性対策
     div.form-group
       label(for="scheduleName") 予定名
       input(type="text" name="scheduleName")#scheduleName.form-control
