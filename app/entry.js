@@ -1,5 +1,7 @@
 'use strict';
 import $ from 'jquery';
+globalThis.jQuery = $;//23章 bootstrap Node.js において実行環境のグローバルオブジェクトを参照
+import bootstrap from 'bootstrap';//23章 bootstrapの読み込み
 
 $('.availability-toggle-button').each((i, e) => {
   const button = $(e);
