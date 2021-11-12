@@ -1,8 +1,8 @@
 'use strict';
 const request = require('supertest');
-const assert = require('assert');
-const app = require('../app');
-const passportStub = require('passport-stub');
+const assert = require('assert');//17章 supertest の読み込み
+const app = require('../app');//17章 テストの対象となる app.js の読み込み
+const passportStub = require('passport-stub');//17章 passport-stub モジュールの読み込み
 const User = require('../models/user');
 const Schedule = require('../models/schedule');
 const Candidate = require('../models/candidate');
@@ -10,23 +10,24 @@ const Availability = require('../models/availability');
 const Comment = require('../models/comment');
 const deleteScheduleAggregate = require('../routes/schedules').deleteScheduleAggregate;
 
-describe('/login', () => {
-  beforeAll(() => {
-    passportStub.install(app);
-    passportStub.login({ username: 'testuser' });
+
+describe('/login', () => {//login にアクセスした際
+  beforeAll(() => {//17章 テスト前に実行したい処理をこの中に記述
+    passportStub.install(app);//passportStub を app オブジェクトにインストール
+    passportStub.login({ username: 'testuser' });//testuser としてログイン
   });
 
-  afterAll(() => {
-    passportStub.logout();
-    passportStub.uninstall(app);
+  afterAll(() => {//17章 テスト後に実行したい処理をこの中に記述
+    passportStub.logout();//testuser からログアウト
+    passportStub.uninstall(app);////passportStub をアンインストール
   });
 
   test('ログインのためのリンクが含まれる', () => {
-    return request(app)
-      .get('/login')
-      .expect('Content-Type', 'text/html; charset=utf-8')
-      .expect(/<a href="\/auth\/github"/)
-      .expect(200);
+    return request(app)//17章 supertest のテストの記法
+      .get('/login')//login への GET リクエストを作成 
+      .expect('Content-Type', 'text/html; charset=utf-8')//レスポンスヘッダの 'Content-Type' が text/html; charset=utf-8 である
+      .expect(/<a href="\/auth\/github"/)//<a href="/auth/github" が HTML に含まれる
+      .expect(200);//ステータスコードが 200 OK で返る
   });
 
   test('ログイン時はユーザー名が表示される', () => {
@@ -37,12 +38,12 @@ describe('/login', () => {
   });
 });
 
-describe('/logout', () => {
+describe('/logout', () => {//logout にアクセスした際
   test('/ にリダイレクトされる', () => {
     return request(app)
-      .get('/logout')
-      .expect('Location', '/')
-      .expect(302);
+      .get('/logout')//logout への GET リクエストを作成 
+      .expect('Location', '/')// "/"への302リダイレクト1
+      .expect(302);// "/"への302リダイレクト2
   });
 });
 

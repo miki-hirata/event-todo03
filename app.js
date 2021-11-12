@@ -6,23 +6,36 @@ var logger = require('morgan');
 var helmet = require('helmet');//17章 helmetモジュールでセキュリティ対策
 var session = require('express-session');//17章 GitHub 認証の実装
 var passport = require('passport');//17章 GitHub 認証の実装
+
+//18章 リレーションの設定ここから
 // モデルの読み込み
-var User = require('./models/user');
-var Schedule = require('./models/schedule');
-var Availability = require('./models/availability');
-var Candidate = require('./models/candidate');
-var Comment = require('./models/comment');
-User.sync().then(() => {
+var User = require('./models/user');//ユーザーモデル読み込み
+var Schedule = require('./models/schedule');//スケジュールモデル読み込み
+var Availability = require('./models/availability');//出欠モデル読み込み
+var Candidate = require('./models/candidate');//候補モデル読み込み
+var Comment = require('./models/comment');//コメントモデル読み込み
+
+User.sync().then(() => {// Userテーブルを作成し、作成後に以下処理を実行
+
   Schedule.belongsTo(User, { foreignKey: 'createdBy' });
-  Schedule.sync();
+  // 予定がユーザーに従属していることを定義
+  // ScheduleのcreatedByをUserの外部キーに設定
+  Schedule.sync();//Scheduleテーブルを作成（上で読み込んだモデルに基づいて作成される）
+
   Comment.belongsTo(User, { foreignKey: 'userId' });
-  Comment.sync();
+  //コメントがユーザーに従属していることを定義
+  //usersのuserIdをCommentの外部キーに設定
+  Comment.sync();//Commentテーブルを作成
+
   Availability.belongsTo(User, { foreignKey: 'userId' });
-  Candidate.sync().then(() => {
+  //出欠がユーザーに従属していることを定義
+  Candidate.sync().then(() => {//候補日程テーブル作成
     Availability.belongsTo(Candidate, { foreignKey: 'candidateId' });
-    Availability.sync();
+    //出欠が候補に従属していることを定期
+    Availability.sync();//出欠テーブル作成
   });
 });
+//18章 リレーションの設定ここまで
 
 //17章 GitHub 認証の実装 ここから
 var GitHubStrategy = require('passport-github2').Strategy;
@@ -45,12 +58,16 @@ passport.use(new GitHubStrategy({
 },
   function (accessToken, refreshToken, profile, done) {
     process.nextTick(function () {
-      User.upsert({
+      //18章 データベースにユーザー情報を保存ここから
+      //GitHub 認証が実行された際に呼び出される処理
+      User.upsert({//INSERT または UPDATE を行う(造語)
         userId: profile.id,
         username: profile.username
+        //取得されたユーザー ID とユーザー名を User のテーブルに保存
       }).then(() => {
         done(null, profile);
       });
+      ////18章 データベースにユーザー情報を保存ここまで
     });
   }
 ));

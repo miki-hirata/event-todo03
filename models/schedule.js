@@ -1,11 +1,11 @@
-'use strict';
-const { sequelize, DataTypes } = require('./sequelize-loader');
+'use strict';//18章 sequalize の記法の定義に沿ってスケジュールのデータモデルを実装
+const { sequelize, DataTypes } = require('./sequelize-loader');//sequelize-loader.js読み込み
 
 const Schedule = sequelize.define(
   'schedules',
   {
     scheduleId: {
-      type: DataTypes.UUID,
+      type: DataTypes.UUID,//Universally Unique Identifier
       primaryKey: true,
       allowNull: false
     },
@@ -14,7 +14,7 @@ const Schedule = sequelize.define(
       allowNull: false
     },
     memo: {
-      type: DataTypes.TEXT,
+      type: DataTypes.TEXT,//長さに制限の無い文字列
       allowNull: false
     },
     createdBy: {
@@ -30,7 +30,7 @@ const Schedule = sequelize.define(
     freezeTableName: true,
     timestamps: false,
     indexes: [
-      {
+      {//インデックスで検索を早くする
         fields: ['createdBy']
       }
     ]
