@@ -47,8 +47,9 @@ block content
             p
               small#self-comment #{commentMap.get(user.userId)}
             //- 21章 AJAX による出欠の更新
+            //- dataで始まる名前の属性を設定して、AJAX での通信で利用できるようにする
             button(
-              data-schedule-id=schedule.scheduleId//- dataで始まる名前の属性を設定して、AJAX での通信で利用できるようにする
+              data-schedule-id=schedule.scheduleId
               data-user-id=user.userId)#self-comment-button.btn-xs.btn-info 編集
         else
           td
