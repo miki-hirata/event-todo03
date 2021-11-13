@@ -2,6 +2,15 @@
 N予備校「予定調整くん」勉強用書き込みファイル
 
 ## yarn install memo
+### 開発の準備 [express]　
+``` 
+yarn global add express-generator@4.16.0
+express --view=pug .
+```  
+Dockerfile / db.Dockerfile / docker-compose.yml
+作成後にインストール
+
+  
 ### 17章 X-Powered-By ヘッダの除去 [helmet]　
 ``` 
 yarn add helmet@4.6.0 
