@@ -7,8 +7,9 @@ const User = require('../models/user');
 const Schedule = require('../models/schedule');
 const Candidate = require('../models/candidate');
 const Availability = require('../models/availability');//20章 出欠のモデルの読み込み
-const Comment = require('../models/comment');
+const Comment = require('../models/comment');//21章 コメントの更新の Web API の実装
 const deleteScheduleAggregate = require('../routes/schedules').deleteScheduleAggregate;
+//22章 削除機能の実装 で schedules に移動した関数を読み込み
 
 
 describe('/login', () => {//login にアクセスした際
@@ -49,14 +50,14 @@ describe('/logout', () => {//logout にアクセスした際
 
 //19章「予定が作成でき、表示される」ことをテスト ここから
 describe('/schedules', () => {
-  beforeAll(() => {
-    passportStub.install(app);
-    passportStub.login({ id: 0, username: 'testuser' });
+  beforeAll(() => {//テスト前に実行したい処理をこの中に記述
+    passportStub.install(app);//passportStub を app オブジェクトにインストール
+    passportStub.login({ id: 0, username: 'testuser' });//testuser としてログイン
   });
 
-  afterAll(() => {
-    passportStub.logout();
-    passportStub.uninstall(app);
+  afterAll(() => {//テスト後に実行したい処理をこの中に記述
+    passportStub.logout();//testuser からログアウト
+    passportStub.uninstall(app);////passportStub をアンインストール
   });
 
   test('予定が作成でき、表示される', (done) => {
@@ -88,14 +89,14 @@ describe('/schedules', () => {
 
 //20章 出欠更新のテストの実装　ここから
 describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
-  beforeAll(() => {
-    passportStub.install(app);
-    passportStub.login({ id: 0, username: 'testuser' });
+  beforeAll(() => {//テスト前に実行したい処理をこの中に記述
+    passportStub.install(app);//passportStub を app オブジェクトにインストール
+    passportStub.login({ id: 0, username: 'testuser' });;//testuser としてログイン
   });
 
-  afterAll(() => {
-    passportStub.logout();
-    passportStub.uninstall(app);
+  afterAll(() => {//テスト後に実行したい処理をこの中に記述
+    passportStub.logout();//testuser からログアウト
+    passportStub.uninstall(app);////passportStub をアンインストール
   });
 
   test('出欠が更新できる', (done) => {
@@ -109,12 +110,13 @@ describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
           Candidate.findOne({
             where: { scheduleId: scheduleId }
           }).then((candidate) => {
-            //予定」に関連する候補を取得し、 その「候補」に対して、 POST で Web API に対して欠席を出席に更新
+            //「予定」に関連する候補を取得し、 その「候補」に対して、 
             // 更新がされることをテスト
             const userId = 0;
             request(app)
               .post(`/schedules/${scheduleId}/users/${userId}/candidates/${candidate.candidateId}`)
-              .send({ availability: 2 }) // 出席に更新
+              //POST で Web API に対して欠席を出席に更新１
+              .send({ availability: 2 }) //POST で Web API に対して欠席を出席に更新2
               .expect('{"status":"OK","availability":2}')//リクエストのレスポンスに '{"status":"OK","availability":2}' が 含まれるかどうかをテスト
               .end((err, res) => {
                 Availability.findAll({
@@ -136,6 +138,7 @@ describe('/schedules/:scheduleId/users/:userId/candidates/:candidateId', () => {
 });
 //20章 出欠更新のテストの実装　ここまで
 
+//21章 コメントの更新の Web API の実装 ここから
 describe('/schedules/:scheduleId/users/:userId/comments', () => {
   beforeAll(() => {
     passportStub.install(app);
@@ -174,8 +177,10 @@ describe('/schedules/:scheduleId/users/:userId/comments', () => {
     });
   });
 });
+//21章 コメントの更新の Web API の実装 ここまで
 
-
+//22章　予定が編集できることのテスト　ここから
+//ほとんど、コメントを更新するときのテストと同じ
 describe('/schedules/:scheduleId?edit=1', () => {
   beforeAll(() => {
     passportStub.install(app);
@@ -195,15 +200,17 @@ describe('/schedules/:scheduleId?edit=1', () => {
         .end((err, res) => {
           const createdSchedulePath = res.headers.location;
           const scheduleId = createdSchedulePath.split('/schedules/')[1];
+          //ここまではテストを実際に行うための予定の作成
           // 更新がされることをテスト
           request(app)
             .post(`/schedules/${scheduleId}?edit=1`)
             .send({ scheduleName: 'テスト更新予定2', memo: 'テスト更新メモ2', candidates: 'テスト更新候補2' })
+            //予定の内容を、予定名、メモ、追加候補という形で更新
             .end((err, res) => {
               Schedule.findByPk(scheduleId).then((s) => {
                 assert.strictEqual(s.scheduleName, 'テスト更新予定2');
                 assert.strictEqual(s.memo, 'テスト更新メモ2');
-              });
+              });//「予定が更新されたか」をテスト
               Candidate.findAll({
                 where: { scheduleId: scheduleId },
                 order: [['candidateId', 'ASC']]
@@ -211,14 +218,18 @@ describe('/schedules/:scheduleId?edit=1', () => {
                 assert.strictEqual(candidates.length, 2);
                 assert.strictEqual(candidates[0].candidateName, 'テスト更新候補1');
                 assert.strictEqual(candidates[1].candidateName, 'テスト更新候補2');
+                //「候補が追加されたか」をテスト
                 deleteScheduleAggregate(scheduleId, done, err);
+                // テストで作成された情報を削除
               });
             });
         });
     });
   });
 });
+//22章　予定が編集できることのテスト　ここまで
 
+//22章　「予定に関連する全ての情報が削除できる」テスト　ここから
 describe('/schedules/:scheduleId?delete=1', () => {
   beforeAll(() => {
     passportStub.install(app);
@@ -254,7 +265,6 @@ describe('/schedules/:scheduleId?delete=1', () => {
                 });
             });
           });
-
           // コメント作成
           const promiseComment = new Promise((resolve) => {
             const userId = 0;
@@ -308,4 +318,4 @@ describe('/schedules/:scheduleId?delete=1', () => {
         });
     });
   });
-});
+});//22章　「予定に関連する全ての情報が削除できる」テスト　ここまで

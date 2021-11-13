@@ -8,7 +8,7 @@ const Schedule = require('../models/schedule');
 const Candidate = require('../models/candidate');
 const User = require('../models/user');//19章 ユーザーのデータモデル読み込み
 const Availability = require('../models/availability');//20章 出欠のモデルの読み込み
-const Comment = require('../models/comment');
+const Comment = require('../models/comment');//21章 コメントの表示の実装
 const csrf = require('csurf');//24章 CSRF 脆弱性対策
 const csrfProtection = csrf({ cookie: true });//24章 CSRF 脆弱性対策
 
@@ -29,14 +29,15 @@ router.post('/', authenticationEnsurer, csrfProtection, (req, res, next) => {//[
     updatedAt: updatedAt
   }).then((schedule) => {//予定を保存し終わったら実行
     createCandidatesAndRedirect(parseCandidateNames(req), scheduleId, res);
-  });
+  });//22章 予定編集を反映させる実装でまとめて関数化
 });
 //19章 予定作成フォームから送られた情報を保存ここまで
 
 //19章 予定と出欠表の表示画面を作成 ここから
+//21章 で以下リファクタリング
 router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
-  let storedSchedule = null;
-  let storedCandidates = null;
+  let storedSchedule = null;//他の Promise オブジェクトへの処理をまたぎたいので
+  let storedCandidates = null;//then に渡す関数のスコープの外側に変数宣言
   Schedule.findOne({
     // sequelizeの書き方 テーブルを結合してユーザーを取得
     // findOne関数・・そのデータモデルに対応するデータを1行だけ取得
@@ -52,7 +53,7 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
   }).then((schedule) => {//予定が見つかった場合に、その候補一覧を取得
     if (schedule) {
       storedSchedule = schedule;
-      return Candidate.findAll({
+      return Candidate.findAll({//結果を then 関数の return で返す
         where: { scheduleId: schedule.scheduleId },
         order: [['candidateId', 'ASC']]//候補ＩＤの昇順→作られた順
       });
@@ -115,15 +116,17 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
       });
     });
     //20章 出欠のモデルの読み込みここまで
-
+    
+    //21章 コメントの表示の実装ここから
     // コメント取得
     return Comment.findAll({
       where: { scheduleId: storedSchedule.scheduleId }
+      //予定IDで絞り込んだすべてのコメント
     }).then((comments) => {
       const commentMap = new Map();  // key: userId, value: comment
       comments.forEach((comment) => {
         commentMap.set(comment.userId, comment.comment);
-      });
+      });//連想配列 commentMap に格納
       res.render('schedule', {
         user: req.user,
         schedule: storedSchedule,
@@ -131,23 +134,27 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
         users: users,
         availabilityMapMap: availabilityMapMap,
         commentMap: commentMap
-      });
+      });//テンプレートに commentMap というプロパティ名で割り当ててテンプレートを描画
+      //21章 コメントの表示の実装ここまで
     });
   });
 });
 
+// 22章予定編集フォームの実装ここから
 router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res, next) => {//[csrfProtection]24章 CSRF 脆弱性対策
+  //URL は、予定表示のページの末尾に /edit を加えたもの
   Schedule.findOne({
     where: {
       scheduleId: req.params.scheduleId
-    }
+    }//指定された予定 ID の予定を取得
   }).then((schedule) => {
     if (isMine(req, schedule)) { // 作成者のみが編集フォームを開ける
-      Candidate.findAll({
+      //isMine という関数を別途用意して、自身の予定であればその後の処理を行う
+      Candidate.findAll({//候補を取得
         where: { scheduleId: schedule.scheduleId },
-        order: [['"candidateId"', 'ASC']]
+        order: [['"candidateId"', 'ASC']]//作成順に並ぶように candidateId の昇順で
       }).then((candidates) => {
-        res.render('edit', {
+        res.render('edit', {//テンプレート edit を描画
           user: req.user,
           schedule: schedule,
           candidates: candidates,
@@ -156,26 +163,30 @@ router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res
       });
     } else {
       const err = new Error('指定された予定がない、または、予定する権限がありません');
-      err.status = 404;
+      err.status = 404;//404 Not Found のステータスを返す
       next(err);
     }
   });
 });
 
-function isMine(req, schedule) {
+function isMine(req, schedule) {//isMine という関数の別途用意
   return schedule && parseInt(schedule.createdBy) === parseInt(req.user.id);
+  //リクエストと予定のオブジェクトを受け取り、
+  //その予定が自分のものであるかの 真偽値を返す関数
 }
+// 22章予定編集フォームの実装ここまで
 
+//22章 予定編集を反映させる実装ここから
 router.post('/:scheduleId', authenticationEnsurer, csrfProtection, (req, res, next) => {//[csrfProtection]24章 CSRF 脆弱性対策
   Schedule.findOne({
     where: {
       scheduleId: req.params.scheduleId
-    }
+    }//予定 ID で予定を取得
   }).then((schedule) => {
-    if (schedule && isMine(req, schedule)) {
-      if (parseInt(req.query.edit) === 1) {
+    if (schedule && isMine(req, schedule)) {//リクエストの送信者が作成者であるかをチェック
+      if (parseInt(req.query.edit) === 1) {//edit=1 のクエリがあるときのみ更新　?
         const updatedAt = new Date();
-        schedule.update({
+        schedule.update({//予定の更新（ SQL における UPDATE 文に対応）
           scheduleId: schedule.scheduleId,
           scheduleName: req.body.scheduleName.slice(0, 255) || '（名称未設定）',
           memo: req.body.memo,
@@ -183,17 +194,19 @@ router.post('/:scheduleId', authenticationEnsurer, csrfProtection, (req, res, ne
           updatedAt: updatedAt
         }).then((schedule) => {
           // 追加されているかチェック
-          const candidateNames = parseCandidateNames(req);
-          if (candidateNames) {
+          const candidateNames = parseCandidateNames(req);//候補日程の配列をパース(分解/解釈)する関数
+          if (candidateNames) {//追加候補がある
             createCandidatesAndRedirect(candidateNames, schedule.scheduleId, res);
+            //関数は下部記載
           } else {
             res.redirect('/schedules/' + schedule.scheduleId);
           }
         });
-      } else if (parseInt(req.query.delete) === 1) {
+        //22章 削除機能の実装 ここから
+      } else if (parseInt(req.query.delete) === 1) {//elete=1 というクエリが渡された時
         deleteScheduleAggregate(req.params.scheduleId, () => {
-          res.redirect('/');
-        });
+          res.redirect('/');//予定を消してからリダイレクト
+        });//22章 削除機能の実装 ここまで
       } else {
         const err = new Error('不正なリクエストです');
         err.status = 400;
@@ -207,6 +220,8 @@ router.post('/:scheduleId', authenticationEnsurer, csrfProtection, (req, res, ne
   });
 });
 
+//22章 削除機能の実装 ここから
+//deleteScheduleAggregate関数はtest/test.jsと共有
 function deleteScheduleAggregate(scheduleId, done, err) {
   const promiseCommentDestroy = Comment.findAll({
     where: { scheduleId: scheduleId }
@@ -236,8 +251,11 @@ function deleteScheduleAggregate(scheduleId, done, err) {
 }
 
 router.deleteScheduleAggregate = deleteScheduleAggregate;
+//22章 削除機能の実装 ここまで
 
 function createCandidatesAndRedirect(candidateNames, scheduleId, res) {
+  //候補日程の配列、予定 ID 、レスポンスオブジェクトを受け取り、 
+  //候補の作成とリダイレクトを行う関数
   const candidates = candidateNames.map((c) => {
     return {
       candidateName: c,
@@ -250,7 +268,9 @@ function createCandidatesAndRedirect(candidateNames, scheduleId, res) {
 }
 
 function parseCandidateNames(req) {
+  //すでに存在したリクエストから予定名の配列をパースする処理を、
+  //parseCandidateNames という関数名で切り出す　？
   return req.body.candidates.trim().split('\n').map((s) => s.trim()).filter((s) => s !== "");
 }
-
+//22章 予定編集を反映させる実装ここまで
 module.exports = router;

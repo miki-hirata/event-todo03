@@ -38,6 +38,7 @@ block content
             else
               h3 #{availabilityLabels[availability]}
               //- 20 章 出欠情報を対応させるここまで
+    //- 21章 AJAX によるコメントの更新
     tr
       th コメント
       each user in users
@@ -45,8 +46,9 @@ block content
           td
             p
               small#self-comment #{commentMap.get(user.userId)}
+            //- 21章 AJAX による出欠の更新
             button(
-              data-schedule-id=schedule.scheduleId
+              data-schedule-id=schedule.scheduleId//- dataで始まる名前の属性を設定して、AJAX での通信で利用できるようにする
               data-user-id=user.userId)#self-comment-button.btn-xs.btn-info 編集
         else
           td
