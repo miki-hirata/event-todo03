@@ -23,7 +23,7 @@ router.post('/', authenticationEnsurer, csrfProtection, (req, res, next) => {//[
   Schedule.create({//予定をデータベース内に保存
     scheduleId: scheduleId,
     scheduleName: req.body.scheduleName.slice(0, 255) || '（名称未設定）',
-    //予定名は255字以内　空の場合（名称未設定）として予定名を保存
+    //予定名は255字以内　空の場合（名称未設定）として予定名を保存　
     memo: req.body.memo,
     createdBy: req.user.id,
     updatedAt: updatedAt
@@ -36,25 +36,24 @@ router.post('/', authenticationEnsurer, csrfProtection, (req, res, next) => {//[
 //19章 予定と出欠表の表示画面を作成 ここから
 //21章 で以下リファクタリング
 router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
-  let storedSchedule = null;//他の Promise オブジェクトへの処理をまたぎたいので
-  let storedCandidates = null;//then に渡す関数のスコープの外側に変数宣言
-  Schedule.findOne({
-    // sequelizeの書き方 テーブルを結合してユーザーを取得
-    // findOne関数・・そのデータモデルに対応するデータを1行だけ取得
-    include: [
+  //個別のスケジュールにアクセスしたときの処理
+  let storedSchedule = null;//[使い回し用]他の Promise オブジェクトへの処理をまたぎたいので
+  let storedCandidates = null;//[使い回し用]then に渡す関数のスコープの外側に変数宣言
+  Schedule.findOne({//[sequelize]条件を満たす最初のデータ取得
+    include: [//[sequelize]テーブルのjoinをするときはincludeを使う
       {
-        model: User,
-        attributes: ['userId', 'username']
+        model: User,//スケジュールとユーザーのテーブルをジョイン（app.jsのcreated by 設定が使われる）
+        attributes: ['userId', 'username']//ユーザーテーブル内の、どのカラムを使うか
       }],
     where: {
-      scheduleId: req.params.scheduleId
+      scheduleId: req.params.scheduleId//リクエストされているスケジュールIDと同じ予定
     },
-    order: [['updatedAt', 'DESC']]
-  }).then((schedule) => {//予定が見つかった場合に、その候補一覧を取得
+    order: [['updatedAt', 'DESC']]//findOneなのでいらない
+  }).then((schedule) => {//データ取得が成功したら、「schedule」として引数を渡す（時間かかる処理なので、thenでつなげる）
     if (schedule) {
-      storedSchedule = schedule;
-      return Candidate.findAll({//結果を then 関数の return で返す
-        where: { scheduleId: schedule.scheduleId },
+      storedSchedule = schedule;//[使い回し用]
+      return Candidate.findAll({//[sequelize]条件を満たす全てのデータ取得
+        where: { scheduleId: schedule.scheduleId },//リクエストされているスケジュールIDと同じ候補
         order: [['candidateId', 'ASC']]//候補ＩＤの昇順→作られた順
       });
     } else {
@@ -62,11 +61,11 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
       err.status = 404;
       next(err);
     }//19章 予定と出欠表の表示画面を作成 ここまで
-  }).then((candidates) => {
+  }).then((candidates) =>{//ひとつ前のthen（）で見つかった候補群を「candidates」として、引数に
     //20章 出欠のモデルの読み込みここから
     // データベースからその予定の全ての出欠を取得する
-    storedCandidates = candidates;
-    return Availability.findAll({//予定 ID でしぼりこんだ出欠の取得
+    storedCandidates = candidates;//[使い回し用]
+    return Availability.findAll({//[sequelize]条件を満たす全てのデータ取得
       include: [
         {
           model: User,
@@ -74,15 +73,15 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
           //後にユーザー情報を利用するため、ユーザー名もテーブルの結合をして取得
         }
       ],
-      where: { scheduleId: storedSchedule.scheduleId },
+      where: { scheduleId: storedSchedule.scheduleId },//リクエストされているスケジュールIDと同じ出欠
       order: [[User, 'username', 'ASC'], ['"candidateId"', 'ASC']]
       //ユーザー名の昇順、候補 ID の昇順
     });
-  }).then((availabilities) => {
+  }).then((availabilities) => {//ひとつ前のthen（）で見つかった出欠群を「availabilities」として、引数に
     // 出欠 MapMap(キー:ユーザー ID, 値:出欠Map(キー:候補 ID, 値:出欠)) を作成する
     // 出欠のデータがあったものだけを データとして入れ子の連想配列の中に保存
     const availabilityMapMap = new Map(); // key: userId, value: Map(key: candidateId, availability)
-    availabilities.forEach((a) => {
+    availabilities.forEach((a) => {//出欠群をひとつずつ取り出して処理
       const map = availabilityMapMap.get(a.user.userId) || new Map();
       map.set(a.candidateId, a.availability);
       availabilityMapMap.set(a.user.userId, map);
@@ -96,7 +95,7 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
       userId: parseInt(req.user.id),
       username: req.user.username
     });
-    availabilities.forEach((a) => {
+    availabilities.forEach((a) => {//出欠群をひとつずつ取り出して処理（2回目？）
       userMap.set(a.user.userId, {
         isSelf: parseInt(req.user.id) === a.user.userId, // 閲覧ユーザー自身であるかを含める
         userId: a.user.userId,
@@ -119,15 +118,15 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
     
     //21章 コメントの表示の実装ここから
     // コメント取得
-    return Comment.findAll({
-      where: { scheduleId: storedSchedule.scheduleId }
+    return Comment.findAll({//[sequelize]条件を満たす全てのデータ取得
+      where: { scheduleId: storedSchedule.scheduleId }//リクエストされているスケジュールIDと同じコメント
       //予定IDで絞り込んだすべてのコメント
-    }).then((comments) => {
+    }).then((comments) => {//データ取得が成功したら、「comments」と名付けて処理を行う
       const commentMap = new Map();  // key: userId, value: comment
       comments.forEach((comment) => {
         commentMap.set(comment.userId, comment.comment);
       });//連想配列 commentMap に格納
-      res.render('schedule', {
+      res.render('schedule', {//schedule.pugに以下の値を渡して表示させる
         user: req.user,
         schedule: storedSchedule,
         candidates: storedCandidates,
@@ -141,9 +140,11 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
 });
 
 // 22章予定編集フォームの実装ここから
-router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res, next) => {//[csrfProtection]24章 CSRF 脆弱性対策
+router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res, next) => {
+  //getアクセスしたとき
+  //[csrfProtection]24章 CSRF 脆弱性対策\
   //URL は、予定表示のページの末尾に /edit を加えたもの
-  Schedule.findOne({
+  Schedule.findOne({//[sequelize]条件を満たす最初のデータ取得
     where: {
       scheduleId: req.params.scheduleId
     }//指定された予定 ID の予定を取得
@@ -155,14 +156,15 @@ router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res
         order: [['"candidateId"', 'ASC']]//作成順に並ぶように candidateId の昇順で
       }).then((candidates) => {
         res.render('edit', {//テンプレート edit を描画
+          //！これらデータをpugに送るために、逆算でデータを取得する（と考えたら分かりやすい！）
           user: req.user,
           schedule: schedule,
           candidates: candidates,
           csrfToken: req.csrfToken()//24章 CSRF 脆弱性対策
         });
       });
-    } else {
-      const err = new Error('指定された予定がない、または、予定する権限がありません');
+    } else {//自分のスケジュールじゃなかったら、編集しないでね
+      const err = new Error('指定された予定がない、または、予定を編集する権限がありません');
       err.status = 404;//404 Not Found のステータスを返す
       next(err);
     }
@@ -171,6 +173,8 @@ router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res
 
 function isMine(req, schedule) {//isMine という関数の別途用意
   return schedule && parseInt(schedule.createdBy) === parseInt(req.user.id);
+  //スケジュールがあったら＆＆の後の処理
+  //ParseIntで数値型にして比較（型をそろえた方が安全）
   //リクエストと予定のオブジェクトを受け取り、
   //その予定が自分のものであるかの 真偽値を返す関数
 }
@@ -178,36 +182,38 @@ function isMine(req, schedule) {//isMine という関数の別途用意
 
 //22章 予定編集を反映させる実装ここから
 router.post('/:scheduleId', authenticationEnsurer, csrfProtection, (req, res, next) => {//[csrfProtection]24章 CSRF 脆弱性対策
-  Schedule.findOne({
+  Schedule.findOne({//[sequelize]条件を満たす最初のデータ取得
     where: {
       scheduleId: req.params.scheduleId
     }//予定 ID で予定を取得
   }).then((schedule) => {
-    if (schedule && isMine(req, schedule)) {//リクエストの送信者が作成者であるかをチェック
-      if (parseInt(req.query.edit) === 1) {//edit=1 のクエリがあるときのみ更新　?
+    if (schedule && isMine(req, schedule)) {
+      //該当スケジュールが存在し、かつ（&&）
+      //自分のスケジュールの場合
+      if (parseInt(req.query.edit) === 1) {//クエリのeditが1のときのリクエスト
         const updatedAt = new Date();
         schedule.update({//予定の更新（ SQL における UPDATE 文に対応）
-          scheduleId: schedule.scheduleId,
-          scheduleName: req.body.scheduleName.slice(0, 255) || '（名称未設定）',
+          scheduleId: schedule.scheduleId,//変わらないからなくてもOK
+          scheduleName: req.body.scheduleName.slice(0, 255) || '（名称未設定）',//これ書くの2回目だから、本当はよくない
           memo: req.body.memo,
           createdBy: req.user.id,
-          updatedAt: updatedAt
+          updatedAt: updatedAt//今更新したよ　updatedAt: new Date()　でも良い
         }).then((schedule) => {
           // 追加されているかチェック
           const candidateNames = parseCandidateNames(req);//候補日程の配列をパース(分解/解釈)する関数
-          if (candidateNames) {//追加候補がある
+          if (candidateNames) {//追加候補があれば
             createCandidatesAndRedirect(candidateNames, schedule.scheduleId, res);
             //関数は下部記載
           } else {
-            res.redirect('/schedules/' + schedule.scheduleId);
+            res.redirect('/schedules/' + schedule.scheduleId);//ただのリダイレクト
           }
         });
         //22章 削除機能の実装 ここから
-      } else if (parseInt(req.query.delete) === 1) {//elete=1 というクエリが渡された時
+      } else if (parseInt(req.query.delete) === 1) {//dlete=1 というクエリが渡された時
         deleteScheduleAggregate(req.params.scheduleId, () => {
           res.redirect('/');//予定を消してからリダイレクト
         });//22章 削除機能の実装 ここまで
-      } else {
+      } else {//例えばedit2だったら（普通ないけど）
         const err = new Error('不正なリクエストです');
         err.status = 400;
         next(err);
@@ -221,13 +227,13 @@ router.post('/:scheduleId', authenticationEnsurer, csrfProtection, (req, res, ne
 });
 
 //22章 削除機能の実装 ここから
-//deleteScheduleAggregate関数はtest/test.jsと共有
-function deleteScheduleAggregate(scheduleId, done, err) {
+//deleteScheduleAggregate関数はtest/test.jsと共有 実際のコードで使いたいから持ってきました！
+function deleteScheduleAggregate(scheduleId, done, err) {//エラーが出てたらdone(終了)
   const promiseCommentDestroy = Comment.findAll({
     where: { scheduleId: scheduleId }
   }).then((comments) => {
-    return Promise.all(comments.map((c) => { return c.destroy(); }));
-  });
+    return Promise.all(comments.map((c) => { return c.destroy(); }));//map(全部処理)でdestroy（消す）
+  });// Promise.all = 全部終わったら
 
   Availability.findAll({
     where: { scheduleId: scheduleId }
@@ -251,26 +257,31 @@ function deleteScheduleAggregate(scheduleId, done, err) {
 }
 
 router.deleteScheduleAggregate = deleteScheduleAggregate;
+//他の場所でも使えるように、ルーターに登録！
 //22章 削除機能の実装 ここまで
 
 function createCandidatesAndRedirect(candidateNames, scheduleId, res) {
+  //使いまわしのために関数に
   //候補日程の配列、予定 ID 、レスポンスオブジェクトを受け取り、 
   //候補の作成とリダイレクトを行う関数
-  const candidates = candidateNames.map((c) => {
+  const candidates = candidateNames.map((c) => {//ひとつひとつ取り出してオブジェクトに変換
     return {
       candidateName: c,
       scheduleId: scheduleId
     };
-  });
-  Candidate.bulkCreate(candidates).then(() => {
+  });//candidates はオブジェクトの配列
+  Candidate.bulkCreate(candidates).then(() => {//bulkCreateは,createの配列版（データベースの行作成）
     res.redirect('/schedules/' + scheduleId);
   });
 }
 
 function parseCandidateNames(req) {
-  //すでに存在したリクエストから予定名の配列をパースする処理を、
-  //parseCandidateNames という関数名で切り出す　？
+  //候補データの空行を削除しつつ配列で返す
   return req.body.candidates.trim().split('\n').map((s) => s.trim()).filter((s) => s !== "");
+  //map() ひとつひとつ取り出して適用
+  //trim() 空白を削除　実は一つ目いらない
+  //split() 配列に分割　\nは改行
+  //filter() 条件に当てはまるものだけ抽出
 }
 //22章 予定編集を反映させる実装ここまで
 module.exports = router;

@@ -19,11 +19,17 @@ $('.availability-toggle-button').each((i, e) => {
     $.post(`/schedules/${scheduleId}/users/${userId}/candidates/${candidateId}`,
       { availability: nextAvailability },
       //出欠更新の Web API の呼び出し
-      (data) => {
+      (data) => {//実行結果を受け取って button 要素の data-* 属性を更新
         button.data('availability', data.availability);
         const availabilityLabels = ['欠', '？', '出'];
         button.text(availabilityLabels[data.availability]);
-      });//実行結果を受け取って button 要素の data-* 属性を更新
+
+        //23章デザインの改善
+        const buttonStyles = ['btn-danger', 'btn-secondary', 'btn-success'];
+        button.removeClass('btn-danger btn-secondary btn-success');
+        button.addClass(buttonStyles[data.availability]);
+      });
+      
   });
 });
 
