@@ -12,6 +12,7 @@ const deleteScheduleAggregate = require('../routes/schedules').deleteScheduleAgg
 //22章 削除機能の実装 で schedules に移動した関数を読み込み
 
 
+
 describe('/login', () => {//login にアクセスした際
   beforeAll(() => {//17章 テスト前に実行したい処理をこの中に記述
     passportStub.install(app);//passportStub を app オブジェクトにインストール
@@ -63,14 +64,19 @@ describe('/schedules', () => {
   test('予定が作成でき、表示される', (done) => {
     User.upsert({ userId: 0, username: 'testuser' }).then(() => {
       // userId が 0 で username がtestuserの ユーザーをデータベース上に作成
-      request(app)
-        .post('/schedules')//POST メソッドを使い予定と候補を作成
-        .send({ scheduleName: 'テスト予定1', memo: 'テストメモ1\r\nテストメモ2', candidates: 'テスト候補1\r\nテスト候補2\r\nテスト候補3' })
-        .expect('Location', /schedules/)//リダイレクト
-        .expect(302)//リダイレクト
-        .end((err, res) => {
-          const createdSchedulePath = res.headers.location;
-          request(app)
+      request(app)//expressのテストの書き方
+        .post('/schedules')//「/schedules」にアクセスしたときに
+        .send({//こんなパラメーターを送る 
+          scheduleName: 'テスト予定1', 
+          memo: 'テストメモ1\r\nテストメモ2', 
+          candidates: 'テスト候補1\r\nテスト候補2\r\nテスト候補3' 
+        })
+        .expect('Location', /schedules/)//expect＝「こうなっていてほしい」
+        //schedulesが、ロケーションに含まれていてほしい（スラッシュは正規表現）
+        .expect(302)//ステータスコードが302リダイレクトになっていてほしい
+        .end((err, res) => {//この処理（/schedules」にアクセス）が終わった時の処理
+          const createdSchedulePath = res.headers.location;//リダイレクト先のURL取得
+          request(app)//getリクエストを投げる
             .get(createdSchedulePath)
             .expect(/テスト予定1/)
             .expect(/テストメモ1/)
@@ -79,7 +85,10 @@ describe('/schedules', () => {
             .expect(/テスト候補2/)
             .expect(/テスト候補3/)
             .expect(200)
-            .end((err, res) => { deleteScheduleAggregate(createdSchedulePath.split('/schedules/')[1], done, err); });
+            .end((err, res) => { //getリクエストを投げ終わったら
+              deleteScheduleAggregate(createdSchedulePath.split('/schedules/')[1], done, err); 
+              //予定を削除（関数）
+            });
             //20章 deleteScheduleAggregate という関数に 予定、そこに紐づく出欠・候補を削除するためのメソッドを切り出し
         });
     });
@@ -194,7 +203,7 @@ describe('/schedules/:scheduleId?edit=1', () => {
 
   test('予定が更新でき、候補が追加できる', (done) => {
     User.upsert({ userId: 0, username: 'testuser' }).then(() => {
-      request(app)
+      request(app)//予定を作成
         .post('/schedules')
         .send({ scheduleName: 'テスト更新予定1', memo: 'テスト更新メモ1', candidates: 'テスト更新候補1' })
         .end((err, res) => {
@@ -207,11 +216,11 @@ describe('/schedules/:scheduleId?edit=1', () => {
             .send({ scheduleName: 'テスト更新予定2', memo: 'テスト更新メモ2', candidates: 'テスト更新候補2' })
             //予定の内容を、予定名、メモ、追加候補という形で更新
             .end((err, res) => {
-              Schedule.findByPk(scheduleId).then((s) => {
-                assert.strictEqual(s.scheduleName, 'テスト更新予定2');
+              Schedule.findByPk(scheduleId).then((s) => {//Scheduleデータベースを見て確認
+                assert.strictEqual(s.scheduleName, 'テスト更新予定2');//deepstrictEqualの方がいい
                 assert.strictEqual(s.memo, 'テスト更新メモ2');
               });//「予定が更新されたか」をテスト
-              Candidate.findAll({
+              Candidate.findAll({//Candidateデータベースを見て確認
                 where: { scheduleId: scheduleId },
                 order: [['candidateId', 'ASC']]
               }).then((candidates) => {

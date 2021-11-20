@@ -7,10 +7,15 @@ block content
       h4 #{schedule.scheduleName}
     div.card-body
       p(style="white-space:pre;") #{schedule.memo}
+      //- white-space:pre;　→　改行は改行として扱う
     div.card-footer
       p 作成者: #{schedule.user.username}
-      //-予定の作成者のユーザー
+      //-予定の作成者のユーザー　（スケジュールとユーザーのテーブルがjoinされている前提の表記）
+      //-スケジュールモデルにusernameはない
+      //-テーブルのjoinはサーバー側（routes/schedule.js）
+      //-真ん中のuser はseaqualizeの仕様で生成されている
   - var isMine = parseInt(user.id) === schedule.user.userId
+  //- schedule.jsのisMineと大体一緒
   if isMine
     div
       a(href=`/schedules/${schedule.scheduleId}/edit`).btn.btn-info この予定を編集する
