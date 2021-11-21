@@ -78,8 +78,11 @@ passport.use(new GitHubStrategy({
 //yarn add passport-google-oauth20
 //yarn add express-session@1.13.0
 var GoogleStrategy = require('passport-google-oauth20').Strategy;
-var GOOGLE_CLIENT_ID = '572023110743-87ipfpklkf0ut36h79c8n5vlctj398mg.apps.googleusercontent.com';  // 発行されたID
-var GOOGLE_CLIENT_SECRET ='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';  // 発行されたシークレットキー
+//var GOOGLE_CLIENT_ID = '572023110743-87ipfpklkf0ut36h79c8n5vlctj398mg.apps.googleusercontent.com';  // 発行されたID
+//var GOOGLE_CLIENT_SECRET ='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';  // 発行されたシークレットキー
+var GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '572023110743-87ipfpklkf0ut36h79c8n5vlctj398mg.apps.googleusercontent.com';  // 発行されたID
+var GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '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';  // 発行されたシークレットキー
+
 passport.serializeUser(function (user, done) {
   done(null, user);
 });
@@ -91,8 +94,8 @@ passport.deserializeUser(function (obj, done) {
 passport.use(new GoogleStrategy({
   clientID: GOOGLE_CLIENT_ID,
   clientSecret: GOOGLE_CLIENT_SECRET,
-  callbackURL: "http://localhost:8000/auth/google/callback"
-},
+  //callbackURL: "http://localhost:8000/auth/google/callback"
+  callbackURL: process.env.HEROKU_URL ? process.env.HEROKU_URL + 'auth/github/callback' : 'http://localhost:8000/auth/github/callback'},
 function (accessToken, refreshToken, profile, done) {
   process.nextTick(function () {
     User.upsert({
