@@ -10,7 +10,8 @@ const Availability = sequelize.define(
       allowNull: false
     },
     userId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL,//データ型の指定　
+      //googleアカウントのIDが長いので、INTEGER（よく使う整数）からDECIMAL（固定小数点型」）に変更
       primaryKey: true,
       allowNull: false
     },

@@ -38,7 +38,7 @@ User.sync().then(() => {// Userテーブルを作成し、作成後に以下処�
 //18章 リレーションの設定ここまで
 
 //17章 GitHub 認証の実装 ここから
-var GitHubStrategy = require('passport-github2').Strategy;
+/* var GitHubStrategy = require('passport-github2').Strategy;
 var GITHUB_CLIENT_ID = '2f831cb3d4aac02393aa';
 var GITHUB_CLIENT_SECRET = '9fbc340ac0175123695d2dedfbdf5a78df3b8067';
 
@@ -70,8 +70,41 @@ passport.use(new GitHubStrategy({
       ////18章 データベースにユーザー情報を保存ここまで
     });
   }
-));
+)); */
 //17章 GitHub 認証の実装 ここまで
+
+//Google認証の実装 ここから
+//yarn add passport@0.3.2
+//yarn add passport-google-oauth20
+//yarn add express-session@1.13.0
+var GoogleStrategy = require('passport-google-oauth20').Strategy;
+var GOOGLE_CLIENT_ID = '572023110743-87ipfpklkf0ut36h79c8n5vlctj398mg.apps.googleusercontent.com';  // 発行されたID
+var GOOGLE_CLIENT_SECRET ='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';  // 発行されたシークレットキー
+passport.serializeUser(function (user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function (obj, done) {
+  done(null, obj);
+});
+
+passport.use(new GoogleStrategy({
+  clientID: GOOGLE_CLIENT_ID,
+  clientSecret: GOOGLE_CLIENT_SECRET,
+  callbackURL: "http://localhost:8000/auth/google/callback"
+},
+function (accessToken, refreshToken, profile, done) {
+  process.nextTick(function () {
+    User.upsert({
+      userId: profile.id,
+      username: profile.displayName
+    }).then(() => {
+      done(null, profile);
+    });
+  });
+}
+));
+//Google認証の実装 ここまで
 
 var indexRouter = require('./routes/index');
 var loginRouter = require('./routes/login');
@@ -93,7 +126,9 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(session({ secret: 'e55be81b307c1c09', resave: false, saveUninitialized: false }));
+app.use(session({ secret: 'ca526afe59627e29', resave: false, saveUninitialized: false })); //XXXXXXXXXXXXXは乱数
+//secret key は以下コマンドで生成
+//node -e "console.log(require('crypto').randomBytes(8).toString('hex'));"
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -104,7 +139,7 @@ app.use('/schedules', schedulesRouter);//19章 routes/schedules.jsをルータ�
 app.use('/schedules', availabilitiesRouter);//20章 routes/availabilities.jsををルーターとして/schedulesのパスに登録
 app.use('/schedules', commentsRouter);//21章 コメントの更新の Web API の実装
 
-app.get('/auth/github',
+/* app.get('/auth/github',
   passport.authenticate('github', { scope: ['user:email'] }),
   function (req, res) {
   });
@@ -123,6 +158,30 @@ app.get('/auth/github/callback',
       res.redirect('/');
     }
     //24章ログインできなかった際のリダイレクトここまで
+  }); */
+
+// Googleログイン認証（スコープ設定）へ
+app.get('/auth/google', passport.authenticate('google', {
+  scope: [
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email'
+  ]
+}));
+
+// Googleログインコールバック
+app.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  function (req, res) {
+    var loginFrom = req.cookies.loginFrom;
+    // オープンリダイレクタ脆弱性対策
+    if (loginFrom &&
+      !loginFrom.includes('http://') &&
+      !loginFrom.includes('https://')) {
+      res.clearCookie('loginFrom');
+      res.redirect(loginFrom);
+    } else {
+      res.redirect('/');
+    }
   });
 
 // catch 404 and forward to error handler

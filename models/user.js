@@ -5,13 +5,15 @@ const User = sequelize.define(
   'users',
   {
     userId: {
-      type: DataTypes.INTEGER,//データ型の指定　整数（よく使うver）
+      type: DataTypes.DECIMAL,//データ型の指定　
+      //googleアカウントのIDが長いので、INTEGER（よく使う整数）からDECIMAL（固定小数点型」）に変更
       primaryKey: true,//主キー
       allowNull: false//null 値を許可しない
     },
     username: {
       type: DataTypes.STRING,//データ型の指定　文字列
-      allowNull: false
+      //Google認証ではもらえない？　保留
+      //allowNull: false
     }
   },
   {

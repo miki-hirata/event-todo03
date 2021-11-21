@@ -89,15 +89,18 @@ router.get('/:scheduleId', authenticationEnsurer, (req, res, next) => {
 
     // 閲覧ユーザーと出欠に紐づくユーザーからユーザー Map (キー:ユーザー ID, 値:ユーザー) を作る
     const userMap = new Map(); // key: userId, value: User
-    userMap.set(parseInt(req.user.id), {
+    //userMap.set(parseInt(req.user.id), {
+    userMap.set(req.user.id, {
       //出欠のデータを 1 つでも持っていたユーザーをユーザー Mapに含める
       isSelf: true,//閲覧ユーザーである
-      userId: parseInt(req.user.id),
+      //userId: parseInt(req.user.id),
+      userId: req.user.id,
       username: req.user.username
     });
     availabilities.forEach((a) => {//出欠群をひとつずつ取り出して処理（2回目？）
       userMap.set(a.user.userId, {
-        isSelf: parseInt(req.user.id) === a.user.userId, // 閲覧ユーザー自身であるかを含める
+        //isSelf: parseInt(req.user.id) === a.user.userId, // 閲覧ユーザー自身であるかを含める
+        isSelf: req.user.id === a.user.userId, // 閲覧ユーザー自身であるかを含める
         userId: a.user.userId,
         username: a.user.username
       });
@@ -172,7 +175,8 @@ router.get('/:scheduleId/edit', authenticationEnsurer, csrfProtection, (req, res
 });
 
 function isMine(req, schedule) {//isMine という関数の別途用意
-  return schedule && parseInt(schedule.createdBy) === parseInt(req.user.id);
+  //return schedule && parseInt(schedule.createdBy) === parseInt(req.user.id);
+  return schedule && schedule.createdBy === req.user.id;
   //スケジュールがあったら＆＆の後の処理
   //ParseIntで数値型にして比較（型をそろえた方が安全）
   //リクエストと予定のオブジェクトを受け取り、
